@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Iterable, Optional
 
+from functools import lru_cache
+
 import numpy as np
 
 
@@ -35,18 +37,32 @@ def compute_lpips(
 ) -> Optional[float]:
     """Learned perceptual similarity metric using the lpips library."""
     try:
-        import lpips  # type: ignore
         import torch
     except ImportError:  # pragma: no cover - optional dependency path
         return None
 
     torch_device = torch.device(device)
-    loss_fn = lpips.LPIPS(net=net).to(torch_device)
+    try:
+        loss_fn = _get_lpips_model(net, str(torch_device))
+    except ImportError:  # pragma: no cover - optional dependency path
+        return None
     ref_tensor = _to_lpips_tensor(reference, torch_device)
     cand_tensor = _to_lpips_tensor(candidate, torch_device)
     with torch.no_grad():
         value = loss_fn(ref_tensor, cand_tensor).item()
     return float(value)
+
+
+@lru_cache(maxsize=None)
+def _get_lpips_model(net: str, device: str):  # pragma: no cover - cache helper
+    import lpips  # type: ignore
+    import torch
+
+    torch_device = torch.device(device)
+    model = lpips.LPIPS(net=net)
+    model = model.to(torch_device)
+    model.eval()
+    return model
 
 
 def _to_lpips_tensor(image: np.ndarray, device):  # pragma: no cover - helper
