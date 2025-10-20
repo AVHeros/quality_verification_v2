@@ -38,3 +38,6 @@ dataset/
 # Temporary Files
 *.tmp
 *.temp
+
+scripts/*
+!scripts/generate_all_scripts.py
