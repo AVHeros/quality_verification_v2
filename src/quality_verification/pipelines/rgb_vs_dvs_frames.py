@@ -33,6 +33,7 @@ def evaluate_rgb_vs_dvs_frames(
     metrics: Optional[Iterable[str]] = None,
     limit: Optional[int] = None,
     output_dir: Optional[Path] = None,
+    device: str = "cpu",
 ) -> Dict[str, object]:
     root_path = Path(root).expanduser().resolve()
     modalities = find_modality_dirs(root_path)
@@ -56,7 +57,7 @@ def evaluate_rgb_vs_dvs_frames(
     for rgb_path, dvs_path in progress_iter(frame_pairs, desc="Comparing frame pairs", total=len(frame_pairs)):
         rgb_img = load_image(rgb_path)
         dvs_img = load_image(dvs_path)
-        metric_result = compute_frame_metrics(rgb_img, dvs_img, metrics=selected_metrics)
+        metric_result = compute_frame_metrics(rgb_img, dvs_img, metrics=selected_metrics, device=device)
         records.append(
             FrameMetricRecord(
                 stem=rgb_path.stem,
@@ -91,4 +92,5 @@ def evaluate_rgb_vs_dvs_frames(
         "metrics_summary": aggregate_to_dict(aggregates),
         "per_pair": [record.to_dict() for record in records],
         "plots": plot_paths,
+        "device": device,
     }

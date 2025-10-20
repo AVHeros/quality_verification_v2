@@ -27,7 +27,12 @@ def compute_ssim(reference: np.ndarray, candidate: np.ndarray) -> float:
     )
 
 
-def compute_lpips(reference: np.ndarray, candidate: np.ndarray, net: str = "alex") -> Optional[float]:
+def compute_lpips(
+    reference: np.ndarray,
+    candidate: np.ndarray,
+    net: str = "alex",
+    device: str = "cpu",
+) -> Optional[float]:
     """Learned perceptual similarity metric using the lpips library."""
     try:
         import lpips  # type: ignore
@@ -35,19 +40,20 @@ def compute_lpips(reference: np.ndarray, candidate: np.ndarray, net: str = "alex
     except ImportError:  # pragma: no cover - optional dependency path
         return None
 
-    loss_fn = lpips.LPIPS(net=net)
-    ref_tensor = _to_lpips_tensor(reference)
-    cand_tensor = _to_lpips_tensor(candidate)
+    torch_device = torch.device(device)
+    loss_fn = lpips.LPIPS(net=net).to(torch_device)
+    ref_tensor = _to_lpips_tensor(reference, torch_device)
+    cand_tensor = _to_lpips_tensor(candidate, torch_device)
     with torch.no_grad():
         value = loss_fn(ref_tensor, cand_tensor).item()
     return float(value)
 
 
-def _to_lpips_tensor(image: np.ndarray):  # pragma: no cover - helper
+def _to_lpips_tensor(image: np.ndarray, device):  # pragma: no cover - helper
     import torch
 
     tensor = torch.from_numpy(image.transpose(2, 0, 1)).float() * 2.0 - 1.0
-    return tensor.unsqueeze(0)
+    return tensor.unsqueeze(0).to(device)
 
 
 MetricFn = Callable[[np.ndarray, np.ndarray], Optional[float]]
@@ -57,19 +63,23 @@ def compute_frame_metrics(
     reference: np.ndarray,
     candidate: np.ndarray,
     metrics: Optional[Iterable[str]] = None,
+    device: str = "cpu",
 ) -> Dict[str, Optional[float]]:
     """Compute the selected metrics between two RGB images in [0, 1] range."""
     metric_map: Dict[str, MetricFn] = {
         "mse": compute_mse,
         "psnr": compute_psnr,
         "ssim": compute_ssim,
-        "lpips": compute_lpips,
     }
     names = list(metrics) if metrics is not None else list(metric_map.keys())
     results: Dict[str, Optional[float]] = {}
     for name in names:
-        func = metric_map.get(name.lower())
+        key = name.lower()
+        if key == "lpips":
+            results[key] = compute_lpips(reference, candidate, device=device)
+            continue
+        func = metric_map.get(key)
         if func is None:
             continue
-        results[name.lower()] = func(reference, candidate)
+        results[key] = func(reference, candidate)
     return results

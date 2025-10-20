@@ -56,6 +56,7 @@ def evaluate_rgb_vs_dvs_events(
     dvs_frames_resolution_fallback: Optional[tuple[int, int]] = None,
     limit: Optional[int] = None,
     output_dir: Optional[Path] = None,
+    device: str = "cpu",
 ) -> Dict[str, object]:
     if frame_rate <= 0:
         raise ValueError("Frame rate must be positive.")
@@ -202,4 +203,5 @@ def evaluate_rgb_vs_dvs_events(
         "metrics_summary": aggregate_to_dict(aggregates),
         "per_window": [record.to_dict() for record in records],
         "plots": plot_paths,
+        "device": device,
     }

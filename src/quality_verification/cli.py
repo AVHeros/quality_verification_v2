@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from quality_verification.pipelines.dvs_self_quality import evaluate_dvs_self_quality
 from quality_verification.pipelines.rgb_vs_dvs_events import evaluate_rgb_vs_dvs_events
 from quality_verification.pipelines.rgb_vs_dvs_frames import evaluate_rgb_vs_dvs_frames
+from quality_verification.utils.device import resolve_device
 from quality_verification.utils.path_utils import ensure_directory
 from quality_verification.utils.reporting import write_json_report
 
@@ -72,6 +73,12 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         default=None,
         help="Directory where reports and plots will be written.",
     )
+    frames_parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Compute device for learned metrics (e.g., cpu, cuda, mps).",
+    )
 
     events_parser = subparsers.add_parser(
         "rgb-vs-dvs-events",
@@ -97,6 +104,12 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         default=None,
         help="Directory where reports and plots will be written.",
     )
+    events_parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Compute device for learned metrics (e.g., cpu, cuda, mps).",
+    )
 
     dvs_parser = subparsers.add_parser(
         "dvs-self-quality",
@@ -116,39 +129,57 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         default=None,
         help="Directory where reports and plots will be written.",
     )
+    dvs_parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Compute device for learned metrics (e.g., cpu, cuda, mps).",
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     if args.command == "rgb-vs-dvs-frames":
         output_dir = args.output_folder
+        device, device_msg = resolve_device(getattr(args, "device", None))
+        if device_msg:
+            print(device_msg)
         result = evaluate_rgb_vs_dvs_frames(
             root=args.root,
             metrics=args.metrics,
             limit=args.limit,
             output_dir=output_dir,
+            device=device,
         )
         _print_summary(result)
         _print_plot_locations(result)
         _handle_outputs(result, output_dir)
     elif args.command == "rgb-vs-dvs-events":
         output_dir = args.output_folder
+        device, device_msg = resolve_device(getattr(args, "device", None))
+        if device_msg:
+            print(device_msg)
         result = evaluate_rgb_vs_dvs_events(
             root=args.root,
             frame_rate=args.frame_rate,
             sync_offset_us=args.sync_offset_us,
             limit=args.limit,
             output_dir=output_dir,
+            device=device,
         )
         _print_summary(result)
         _print_plot_locations(result)
         _handle_outputs(result, output_dir)
     elif args.command == "dvs-self-quality":
         output_dir = args.output_folder
+        device, device_msg = resolve_device(getattr(args, "device", None))
+        if device_msg:
+            print(device_msg)
         result = evaluate_dvs_self_quality(
             root=args.root,
             window_ms=args.window_ms,
             limit=args.limit,
             output_dir=output_dir,
+            device=device,
         )
         print(json.dumps(result.get("event_quality", {}).get("metrics_summary", {}), indent=2))
         _print_plot_locations(result)

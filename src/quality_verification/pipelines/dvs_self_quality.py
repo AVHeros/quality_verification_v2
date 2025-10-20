@@ -45,6 +45,7 @@ def evaluate_dvs_self_quality(
     window_ms: float = 50.0,
     limit: Optional[int] = None,
     output_dir: Optional[Path] = None,
+    device: str = "cpu",
 ) -> Dict[str, object]:
     if window_ms <= 0:
         raise ValueError("Window size must be positive.")
@@ -134,8 +135,8 @@ def evaluate_dvs_self_quality(
     for frame_path in progress_iter(dvs_frame_files, desc="Assessing DVS frames", total=len(dvs_frame_files)):
         frame = load_image(frame_path)
         record: Dict[str, float | None] = {
-            "brisque": compute_brisque(frame),
-            "niqe": compute_niqe(frame),
+            "brisque": compute_brisque(frame, device=device),
+            "niqe": compute_niqe(frame, device=device),
         }
         frame_records.append({"path": str(frame_path), "metrics": record})
         frame_metrics.append({k: v for k, v in record.items() if isinstance(v, (float, int))})
@@ -193,4 +194,5 @@ def evaluate_dvs_self_quality(
             "per_frame": frame_records,
         },
         "plots": plot_paths,
+        "device": device,
     }
