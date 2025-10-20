@@ -1,0 +1,20 @@
+Metric,Category,Data_Format_Needed,Implementation_Details,Python_Libraries,Complexity
+Event Density,Event Statistics,AEDAT2/4 event streams,Count events in spatial-temporal windows. Formula: ED = N_events / (width × height × time_window),"NumPy, dv-processing (iniVation)",Low
+Polarity Accuracy,Event Statistics,Events + Ground Truth RGB frames,"Compare event polarity with brightness changes: ΔL = log(I_t / I_{t-1}). If ΔL > 0 expect p=+1, else p=-1","NumPy, OpenCV",Medium
+Temporal Precision,Event Statistics,Events + Frame timestamps,"Measure inter-event intervals, compare with expected timing from frame rate. Calculate std dev of event timing","NumPy, SciPy",Medium
+MSE,Reconstruction Quality,Reconstructed frames + RGB ground truth,MSE = mean((I_reconstructed - I_gt)^2). Reconstruct from events using E2VID/FireNet,"NumPy, scikit-image, PyTorch",Medium
+SSIM,Reconstruction Quality,Reconstructed frames + RGB ground truth,"Calculate structural similarity using scikit-image.metrics.structural_similarity. Range: [-1,1]","scikit-image, OpenCV",Low
+LPIPS,Perceptual Quality,Reconstructed frames + RGB ground truth,Use pretrained AlexNet/VGG. Install: pip install lpips. Lower values = better perceptual similarity,lpips (PyTorch library),Medium
+PSNR,Reconstruction Quality,Reconstructed frames + RGB ground truth,PSNR = 10 × log10(MAX^2 / MSE). Higher values (dB) = better quality,"scikit-image, OpenCV",Low
+Temporal Consistency Loss,Temporal Quality,Sequence of reconstructed frames,"Warp frame t-1 to t using optical flow, measure photometric error. Use FlowNet2 for optical flow","PyTorch, FlowNet2-PyTorch",High
+BRISQUE,No-Reference Quality,Reconstructed frames (no GT needed),No-reference metric based on natural scene statistics. Use OpenCV or IQA-PyTorch,"opencv-python, pyiqa",Medium
+NIQE,No-Reference Quality,Reconstructed frames (no GT needed),Natural Image Quality Evaluator. Lower scores = better quality,"opencv-python, pyiqa",Medium
+MANIQA,No-Reference Quality,Reconstructed frames (no GT needed),Transformer-based deep learning metric. Requires pretrained model,"pyiqa, PyTorch",High
+Event Quality Score (EQS),Event Specific,Event streams (synthetic + real),"Extract features from RVT network, compute cosine similarity in latent space. Higher = more realistic","RVT (GitHub: eventbasedvision/EQS), PyTorch",High
+Contrast Maximization,Event Specific,Event streams,"Warp events to reference time, create IWE, maximize variance. Use events_contrast_maximization library",events_contrast_maximization (GitHub: TimoStoff),High
+Event Rate,Event Statistics,Event streams,ER = N_events / duration_seconds. Calculate separately for ON and OFF events. Monitor noise rates,"NumPy, dv-processing",Low
+Alpha-Precision,Synthetic Data Quality,Synthetic events + Real events,"Measure fidelity: fraction of synthetic in dense real regions. Use α parameter (e.g., 0.8)","synthcity, scikit-learn",High
+Beta-Recall,Synthetic Data Quality,Synthetic events + Real events,"Measure diversity: coverage of real distribution. Use β parameter (e.g., 0.8)","synthcity, scikit-learn",High
+Authenticity,Synthetic Data Quality,Synthetic events + Training events,"Measure novelty: check if synthetic are unique, not copies of training data","synthcity, scikit-learn",High
+Mauve,Synthetic Data Quality,Synthetic events + Real events,KL divergence frontier between quantized embeddings. pip install mauve-text,"mauve-text, PyTorch",High
+Event-Edge Correlation,Cross-Modal,Events + RGB frames,Compute correlation between IWE and edge maps from frames. Use Canny edge detector,"OpenCV, NumPy, SciPy",Medium

@@ -1,0 +1,40 @@
+# DVS Quality Verification v2 - .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+
+# Virtual Environment
+venv/
+.venv/
+.env
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# Dataset Files (large data)
+dataset/
+
+# Event Data
+*.aedat
+*.aedat4
+
+# Generated Outputs
+**/plots/*.png
+**/plots/*.jpg
+**/plots/*.pdf
+**/plots/*.svg
+**/report.json
+
+# Temporary Files
+*.tmp
+*.temp

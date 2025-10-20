@@ -1,0 +1,5 @@
+Data_Format,Recommended_Metrics,Priority
+RGB JPG Frames,"MSE, SSIM, PSNR, LPIPS, Temporal Consistency Loss",High - Core reconstruction quality
+AEDAT2/AEDAT4 Events,"Event Density, Event Rate, Polarity Accuracy, Temporal Precision",High - Event stream characteristics
+DVS Frames (accumulated),"Contrast Maximization, BRISQUE, NIQE, Event-Edge Correlation",Medium - Event visualization quality
+Synthetic vs Real Events,"EQS, Alpha-Precision, Beta-Recall, Authenticity, Mauve",High - Validate synthetic data quality
