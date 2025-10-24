@@ -39,5 +39,8 @@ dataset/
 *.tmp
 *.temp
 
+.trae/
+dvs_analysis.log
+
 scripts/*
 !scripts/generate_all_scripts.py
