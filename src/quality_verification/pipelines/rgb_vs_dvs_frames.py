@@ -70,9 +70,23 @@ def evaluate_rgb_vs_dvs_frames(
     rgb_files = list_frame_files(rgb_path)
     dvs_files = list_frame_files(dvs_path)
 
-    frame_pairs = pair_frames(rgb_files, dvs_files, limit=limit)
+    frame_pairs = pair_frames(
+        rgb_files,
+        dvs_files,
+        limit=limit,
+        allow_mismatch=True,
+    )
     if not frame_pairs:
-        raise RuntimeError("No matching frame pairs were found between RGB and DVS data.")
+        raise RuntimeError(
+            "No matching frame pairs were found between RGB and DVS data."
+            " Ensure file naming or ordering overlaps between modalities."
+        )
+
+    paired_rgb_paths = {pair[0] for pair in frame_pairs}
+    paired_dvs_paths = {pair[1] for pair in frame_pairs}
+    unpaired_rgb = [p for p in rgb_files if p not in paired_rgb_paths]
+    unpaired_dvs = [p for p in dvs_files if p not in paired_dvs_paths]
+    pairing_strategy = "stem" if all(a.stem == b.stem for a, b in frame_pairs) else "index"
 
     records: List[FrameMetricRecord] = []
     metric_values: List[Dict[str, float]] = []
@@ -148,4 +162,11 @@ def evaluate_rgb_vs_dvs_frames(
         "per_pair": [record.to_dict() for record in records],
         "plots": plot_paths,
         "device": device,
+        "pairing": {
+            "strategy": pairing_strategy,
+            "unpaired_rgb_count": len(unpaired_rgb),
+            "unpaired_dvs_count": len(unpaired_dvs),
+            "unpaired_rgb_samples": [str(path) for path in unpaired_rgb[:5]],
+            "unpaired_dvs_samples": [str(path) for path in unpaired_dvs[:5]],
+        },
     }

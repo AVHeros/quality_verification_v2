@@ -87,7 +87,7 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         "--input-dvs",
         type=Path,
         default=None,
-        help="Explicit path to the DVS frames/aedat4 directory.",
+        help="Explicit path to the DVS frames directory.",
     )
     frames_parser.add_argument(
         "--device",

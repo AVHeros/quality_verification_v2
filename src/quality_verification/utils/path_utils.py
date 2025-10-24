@@ -41,16 +41,44 @@ def pair_frames(
     rgb_files: Iterable[Path],
     dvs_files: Iterable[Path],
     limit: Optional[int] = None,
+    allow_mismatch: bool = False,
+    max_count_difference: int = 5,
 ) -> List[Tuple[Path, Path]]:
-    """Pair RGB and DVS frame files by matching stem names."""
-    rgb_map = {p.stem: p for p in rgb_files}
-    dvs_map = {p.stem: p for p in dvs_files}
+    """Pair RGB and DVS frame files by matching stem names.
+
+    When stems do not overlap and ``allow_mismatch`` is True, falls back to
+    pairing files in order provided the directory counts are within
+    ``max_count_difference`` of one another. This supports datasets where one
+    modality has a small number of extra frames.
+    """
+
+    rgb_list = list(rgb_files)
+    dvs_list = list(dvs_files)
+
+    rgb_map = {p.stem: p for p in rgb_list}
+    dvs_map = {p.stem: p for p in dvs_list}
 
     common_stems = sorted(set(rgb_map) & set(dvs_map))
-    if limit is not None:
-        common_stems = common_stems[:limit]
+    if common_stems:
+        if limit is not None:
+            common_stems = common_stems[:limit]
+        return [(rgb_map[stem], dvs_map[stem]) for stem in common_stems]
 
-    return [(rgb_map[stem], dvs_map[stem]) for stem in common_stems]
+    if not allow_mismatch:
+        return []
+
+    if not rgb_list or not dvs_list:
+        return []
+
+    if abs(len(rgb_list) - len(dvs_list)) > max_count_difference:
+        return []
+
+    rgb_sorted = sorted(rgb_list)
+    dvs_sorted = sorted(dvs_list)
+    pair_count = min(len(rgb_sorted), len(dvs_sorted))
+    if limit is not None:
+        pair_count = min(pair_count, limit)
+    return list(zip(rgb_sorted[:pair_count], dvs_sorted[:pair_count]))
 
 
 def ensure_directory(path: Path | str) -> Path:
