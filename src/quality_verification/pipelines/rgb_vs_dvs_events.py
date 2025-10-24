@@ -39,8 +39,13 @@ class EventMetricRecord:
         }
 
 
-def _discover_aedat_file(dvs_root: Path) -> Path:
-    files = collect_files(dvs_root, suffixes={".aedat", ".aedat4"})
+def _discover_aedat_file(dvs_source: Path) -> Path:
+    if dvs_source.is_file():
+        if dvs_source.suffix.lower() in {".aedat", ".aedat4"}:
+            return dvs_source
+        raise FileNotFoundError("Provided DVS input file must be an AEDAT or AEDAT4 file.")
+
+    files = collect_files(dvs_source, suffixes={".aedat", ".aedat4"})
     if not files:
         raise FileNotFoundError("No AEDAT or AEDAT4 files found under the DVS directory.")
     if len(files) > 1:
@@ -50,30 +55,51 @@ def _discover_aedat_file(dvs_root: Path) -> Path:
 
 
 def evaluate_rgb_vs_dvs_events(
-    root: Path | str,
     frame_rate: float,
+    root: Path | str | None = None,
     sync_offset_us: int = 0,
     dvs_frames_resolution_fallback: Optional[tuple[int, int]] = None,
     limit: Optional[int] = None,
     output_dir: Optional[Path] = None,
     device: str = "cpu",
+    rgb_dir: Path | str | None = None,
+    dvs_dir: Path | str | None = None,
 ) -> Dict[str, object]:
     if frame_rate <= 0:
         raise ValueError("Frame rate must be positive.")
     frame_period_us = int(1_000_000 / frame_rate)
 
-    root_path = Path(root).expanduser().resolve()
-    modalities = find_modality_dirs(root_path)
-    if "rgb" not in modalities or "dvs" not in modalities:
-        raise FileNotFoundError("Root must contain both RGB and DVS directories.")
+    root_path = Path(root).expanduser().resolve() if root is not None else None
+    rgb_path = Path(rgb_dir).expanduser().resolve() if rgb_dir is not None else None
+    dvs_path = Path(dvs_dir).expanduser().resolve() if dvs_dir is not None else None
 
-    rgb_files = list_frame_files(modalities["rgb"])
+    if rgb_path is None or dvs_path is None:
+        if root_path is None:
+            raise ValueError("Provide a root directory or explicit RGB and DVS directories.")
+        modalities = find_modality_dirs(root_path)
+        if "rgb" not in modalities or "dvs" not in modalities:
+            raise FileNotFoundError("Root must contain both RGB and DVS directories.")
+        if rgb_path is None:
+            rgb_path = modalities["rgb"]
+        if dvs_path is None:
+            dvs_path = modalities["dvs"]
+
+    if rgb_path is None or dvs_path is None:  # defensive
+        raise RuntimeError("Failed to resolve RGB and DVS inputs.")
+    if not rgb_path.exists():
+        raise FileNotFoundError(f"RGB input path not found: {rgb_path}")
+    if not rgb_path.is_dir():
+        raise NotADirectoryError(f"RGB input path must be a directory: {rgb_path}")
+    if not dvs_path.exists():
+        raise FileNotFoundError(f"DVS input path not found: {dvs_path}")
+
+    rgb_files = list_frame_files(rgb_path)
     if limit is not None:
         rgb_files = rgb_files[: limit + 1]
     if len(rgb_files) < 2:
         raise RuntimeError("At least two RGB frames are required to compare against events.")
 
-    aedat_path = _discover_aedat_file(modalities["dvs"])
+    aedat_path = _discover_aedat_file(dvs_path)
 
     with AEDAT4Loader(aedat_path) as loader:
         width, height = loader.geometry
@@ -196,7 +222,9 @@ def evaluate_rgb_vs_dvs_events(
             plot_paths["event_rate_histogram"] = str(histogram_path)
 
     return {
-        "root": str(root_path),
+    "root": str(root_path) if root_path is not None else None,
+    "rgb_dir": str(rgb_path),
+    "dvs_dir": str(dvs_path),
         "frame_rate": frame_rate,
         "frame_count": len(rgb_files),
         "sensor_geometry": {"width": width, "height": height},

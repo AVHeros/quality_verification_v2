@@ -31,21 +31,44 @@ class FrameMetricRecord:
 
 
 def evaluate_rgb_vs_dvs_frames(
-    root: Path | str,
+    root: Path | str | None = None,
+    rgb_dir: Path | str | None = None,
+    dvs_dir: Path | str | None = None,
     metrics: Optional[Iterable[str]] = None,
     limit: Optional[int] = None,
     output_dir: Optional[Path] = None,
     device: str = "cpu",
 ) -> Dict[str, object]:
-    root_path = Path(root).expanduser().resolve()
-    modalities = find_modality_dirs(root_path)
-    if "rgb" not in modalities:
-        raise FileNotFoundError("Could not locate an RGB directory under the root.")
-    if "dvs" not in modalities:
-        raise FileNotFoundError("Could not locate a DVS directory under the root.")
+    root_path = Path(root).expanduser().resolve() if root is not None else None
+    rgb_path = Path(rgb_dir).expanduser().resolve() if rgb_dir is not None else None
+    dvs_path = Path(dvs_dir).expanduser().resolve() if dvs_dir is not None else None
 
-    rgb_files = list_frame_files(modalities["rgb"])
-    dvs_files = list_frame_files(modalities["dvs"])
+    if rgb_path is None or dvs_path is None:
+        if root_path is None:
+            raise ValueError("Provide a root directory or explicit RGB and DVS directories.")
+        modalities = find_modality_dirs(root_path)
+        if rgb_path is None:
+            if "rgb" not in modalities:
+                raise FileNotFoundError("Could not locate an RGB directory under the root.")
+            rgb_path = modalities["rgb"]
+        if dvs_path is None:
+            if "dvs" not in modalities:
+                raise FileNotFoundError("Could not locate a DVS directory under the root.")
+            dvs_path = modalities["dvs"]
+
+    if rgb_path is None or dvs_path is None:  # defensive; should not happen
+        raise RuntimeError("Failed to resolve RGB and DVS directories.")
+    if not rgb_path.exists():
+        raise FileNotFoundError(f"RGB input path not found: {rgb_path}")
+    if not rgb_path.is_dir():
+        raise NotADirectoryError(f"RGB input path must be a directory: {rgb_path}")
+    if not dvs_path.exists():
+        raise FileNotFoundError(f"DVS input path not found: {dvs_path}")
+    if not dvs_path.is_dir():
+        raise NotADirectoryError(f"DVS input path must be a directory: {dvs_path}")
+
+    rgb_files = list_frame_files(rgb_path)
+    dvs_files = list_frame_files(dvs_path)
 
     frame_pairs = pair_frames(rgb_files, dvs_files, limit=limit)
     if not frame_pairs:
@@ -117,7 +140,9 @@ def evaluate_rgb_vs_dvs_frames(
                 plot_paths[name] = str(plot_path)
 
     return {
-        "root": str(root_path),
+    "root": str(root_path) if root_path is not None else None,
+    "rgb_dir": str(rgb_path),
+    "dvs_dir": str(dvs_path),
         "pair_count": len(frame_pairs),
         "metrics_summary": aggregate_to_dict(aggregates),
         "per_pair": [record.to_dict() for record in records],

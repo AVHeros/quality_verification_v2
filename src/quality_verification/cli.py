@@ -59,7 +59,11 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         "rgb-vs-dvs-frames",
         help="Compare RGB frames against synthesized DVS frames.",
     )
-    frames_parser.add_argument("--root", required=True, type=Path)
+    frames_parser.add_argument(
+        "--root",
+        type=Path,
+        help="Root directory containing both RGB and DVS subfolders (optional when using explicit inputs).",
+    )
     frames_parser.add_argument(
         "--metrics",
         nargs="*",
@@ -74,6 +78,18 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         help="Directory where reports and plots will be written.",
     )
     frames_parser.add_argument(
+        "--input-rgb",
+        type=Path,
+        default=None,
+        help="Explicit path to the RGB frames directory.",
+    )
+    frames_parser.add_argument(
+        "--input-dvs",
+        type=Path,
+        default=None,
+        help="Explicit path to the DVS frames/aedat4 directory.",
+    )
+    frames_parser.add_argument(
         "--device",
         type=str,
         default="cpu",
@@ -84,7 +100,11 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         "rgb-vs-dvs-events",
         help="Compare RGB frames against synthesized DVS events (AEDAT4).",
     )
-    events_parser.add_argument("--root", required=True, type=Path)
+    events_parser.add_argument(
+        "--root",
+        type=Path,
+        help="Root directory containing both RGB and DVS subfolders (optional when using explicit inputs).",
+    )
     events_parser.add_argument(
         "--frame-rate",
         required=True,
@@ -103,6 +123,18 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         type=Path,
         default=None,
         help="Directory where reports and plots will be written.",
+    )
+    events_parser.add_argument(
+        "--input-rgb",
+        type=Path,
+        default=None,
+        help="Explicit path to the RGB frames directory.",
+    )
+    events_parser.add_argument(
+        "--input-dvs",
+        type=Path,
+        default=None,
+        help="Explicit path to the DVS events directory or AEDAT file.",
     )
     events_parser.add_argument(
         "--device",
@@ -140,11 +172,15 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
 
     if args.command == "rgb-vs-dvs-frames":
         output_dir = args.output_folder
+        if args.root is None and (args.input_rgb is None or args.input_dvs is None):
+            frames_parser.error("Provide --root or both --input-rgb and --input-dvs for rgb-vs-dvs-frames.")
         device, device_msg = resolve_device(getattr(args, "device", None))
         if device_msg:
             print(device_msg)
         result = evaluate_rgb_vs_dvs_frames(
             root=args.root,
+            rgb_dir=args.input_rgb,
+            dvs_dir=args.input_dvs,
             metrics=args.metrics,
             limit=args.limit,
             output_dir=output_dir,
@@ -155,16 +191,20 @@ def main(argv: Optional[Iterable[str]] = None) -> None:
         _handle_outputs(result, output_dir)
     elif args.command == "rgb-vs-dvs-events":
         output_dir = args.output_folder
+        if args.root is None and (args.input_rgb is None or args.input_dvs is None):
+            events_parser.error("Provide --root or both --input-rgb and --input-dvs for rgb-vs-dvs-events.")
         device, device_msg = resolve_device(getattr(args, "device", None))
         if device_msg:
             print(device_msg)
         result = evaluate_rgb_vs_dvs_events(
-            root=args.root,
             frame_rate=args.frame_rate,
+            root=args.root,
             sync_offset_us=args.sync_offset_us,
             limit=args.limit,
             output_dir=output_dir,
             device=device,
+            rgb_dir=args.input_rgb,
+            dvs_dir=args.input_dvs,
         )
         _print_summary(result)
         _print_plot_locations(result)

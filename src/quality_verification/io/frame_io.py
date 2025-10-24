@@ -9,7 +9,7 @@ from quality_verification.utils.path_utils import collect_files
 
 
 def list_frame_files(directory: Path | str) -> List[Path]:
-    """Return a sorted list of JPG frame files contained in the directory."""
+    """Return a sorted list of JPG or PNG frame files contained in the directory."""
     return collect_files(directory, suffixes={".jpg", ".jpeg", ".png"})
 
 
