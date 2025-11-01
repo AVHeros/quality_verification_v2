@@ -1,51 +1,127 @@
 #!/usr/bin/env python3
-"""
-Plot configuration module for DVS Quality Verification visualizations.
+"""Plot configuration and styling helpers for visualization modules.
 
-This module defines plotting styles, colors, and common configuration
-settings used across all visualization modules.
+This module centralises Matplotlib/NumPy configuration so that all figures
+adhere to the same publication-quality style guidelines. It also exposes
+utility methods for exporting figures in multiple formats and working with
+color-blind–safe palettes.
 """
+
+from __future__ import annotations
+
+import itertools
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Dict, List, Optional
 
-# Set matplotlib style for better, cleaner plots
-plt.style.use('default')
-plt.rcParams.update({
-    'font.size': 14,
-    'axes.titlesize': 16,
-    'axes.labelsize': 14,
-    'xtick.labelsize': 12,
-    'ytick.labelsize': 12,
-    'legend.fontsize': 12,
-    'figure.titlesize': 18,
+# -- Styling presets -----------------------------------------------------
+
+_SERIF_FONT = 'DejaVu Serif'
+
+_BASE_STYLE = {
+    'figure.dpi': 110,
+    'savefig.dpi': 300,
+    'font.family': _SERIF_FONT,
+    'font.size': 12,
+    'axes.titlesize': 14,
+    'axes.labelsize': 12,
+    'xtick.labelsize': 11,
+    'ytick.labelsize': 11,
+    'legend.fontsize': 10,
+    'figure.titlesize': 16,
     'axes.grid': True,
-    'grid.alpha': 0.3,
-    'axes.axisbelow': True
-})
-
-# Define clear color palette for consistent plotting
-COLORS = {
-    'primary': '#2E86AB',
-    'secondary': '#A23B72', 
-    'accent': '#F18F01',
-    'success': '#C73E1D',
-    'info': '#5D737E',
-    'light': '#F5F5F5',
-    'dark': '#2C3E50'
+    'grid.alpha': 0.25,
+    'axes.axisbelow': True,
+    'axes.titleweight': 'semibold',
+    'pdf.fonttype': 42,   # Preserve editable text in vector exports
+    'ps.fonttype': 42,
 }
 
-# Color palette for multiple categories
-CATEGORY_COLORS = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#5D737E', '#8E44AD', '#27AE60', '#E67E22']
+_PRINT_STYLE = {
+    'figure.figsize': (6.5, 4.0),  # Two-column journal width
+    'axes.prop_cycle': plt.cycler(color=[
+        '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', '#666666'
+    ]),
+    'axes.edgecolor': 'black',
+    'axes.linewidth': 0.8,
+    'xtick.direction': 'out',
+    'ytick.direction': 'out',
+    'lines.linewidth': 2.0,
+    'legend.frameon': False,
+}
+
+_PRESENTATION_STYLE = {
+    'font.size': 14,
+    'axes.titlesize': 18,
+    'axes.labelsize': 16,
+    'legend.fontsize': 13,
+    'figure.titlesize': 22,
+    'figure.figsize': (9.0, 5.5),
+}
+
+
+def _apply_style(style: Dict[str, float | str]) -> None:
+    """Apply a style dictionary to Matplotlib without clearing rc defaults."""
+
+    plt.rcParams.update(style)
+
+
+# Apply style presets at import time (base + print default).
+plt.style.use('default')
+_apply_style(_BASE_STYLE)
+_apply_style(_PRINT_STYLE)
+
+
+# -- Color palettes ------------------------------------------------------
+
+COLORS = {
+    'primary': '#1b9e77',
+    'secondary': '#d95f02',
+    'accent': '#7570b3',
+    'success': '#66a61e',
+    'warning': '#e6ab02',
+    'danger': '#d73027',
+    'info': '#1f78b4',
+    'light': '#f0f0f0',
+    'dark': '#252525',
+}
+
+_COLORBLIND_SET = ['#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', '#666666']
+_GREYSCALE_COMPANION = ['#252525', '#525252', '#737373', '#969696', '#bdbdbd', '#d9d9d9']
+
+CATEGORY_COLORS = _COLORBLIND_SET
+
+
+PathLike = Union[str, Path]
+
+
+@dataclass
+class ExportSettings:
+    """Configuration for exporting figures."""
+
+    formats: Sequence[str] = ("png", "pdf")
+    bbox_inches: str = "tight"
+    transparent: bool = False
+
+    def iter_paths(self, base_path: PathLike) -> Iterable[tuple[str, str]]:
+        base = str(base_path)
+        for fmt in self.formats:
+            suffix = fmt.lower().lstrip('.')
+            yield suffix, f"{base}.{suffix}"
 
 
 class PlotConfig:
-    """Configuration class for DVS visualization plots."""
-    
+    """Configuration and convenience utilities for all plotting modules."""
+
     def __init__(self):
         self.colors = COLORS
         self.category_colors = CATEGORY_COLORS
+        self.greyscale_palette = _GREYSCALE_COMPANION
+        self.export_settings = ExportSettings()
+        self.active_style = 'print'
         
         # Event metrics configuration
         self.event_metrics_config = {
@@ -115,6 +191,39 @@ class PlotConfig:
                 'polarity_accuracy_mean', 'polarity_accuracy'
             },
         }
+
+    # ------------------------------------------------------------------
+    # Styling helpers
+
+    def apply_style(self, mode: str = 'print') -> None:
+        """Switch global Matplotlib style presets.
+
+        Parameters
+        ----------
+        mode:
+            Either ``'print'`` (default) or ``'presentation'``. Passing any
+            other value reverts to the base style only.
+        """
+
+        plt.style.use('default')
+        _apply_style(_BASE_STYLE)
+        if mode == 'presentation':
+            _apply_style(_PRESENTATION_STYLE)
+            self.active_style = 'presentation'
+        elif mode == 'print':
+            _apply_style(_PRINT_STYLE)
+            self.active_style = 'print'
+        else:
+            self.active_style = 'custom'
+
+    def iter_color_cycle(self, greyscale: bool = False) -> Iterable[str]:
+        """Return an infinite color iterator for consistent categorical hues."""
+
+        palette = self.greyscale_palette if greyscale else self.category_colors
+        return itertools.cycle(palette)
+
+    # ------------------------------------------------------------------
+    # Metric helpers
     
     def get_metric_info(self, metric_name: str) -> tuple[str, str]:
         """Get display name and unit for a metric."""
@@ -131,9 +240,15 @@ class PlotConfig:
         """Get color for a given index using the category colors."""
         return self.category_colors[index % len(self.category_colors)]
     
-    def get_colors_for_count(self, count: int) -> List[str]:
-        """Get a list of colors for a given count."""
-        return [self.get_color_for_index(i) for i in range(count)]
+    def get_colors_for_count(self, count: int, *, greyscale: bool = False) -> List[str]:
+        """Get a list of colors for a given count.
+
+        When ``greyscale`` is True the palette is suitable for print in
+        monochrome journals.
+        """
+
+        palette = self.greyscale_palette if greyscale else self.category_colors
+        return [palette[i % len(palette)] for i in range(count)]
     
     def setup_clean_bar_plot(self, ax, x_data, y_data, colors=None, title="", xlabel="", ylabel="", 
                            add_value_labels=True, rotation=45):
@@ -316,11 +431,42 @@ class PlotConfig:
         ax.set_ylim(0, 1)
         ax.axis('off')
     
-    def save_plot(self, fig, output_path, dpi=300):
-        """Save plot with consistent settings."""
+    def save_plot(self, fig, output_path, *, dpi: int = 300,
+                  export_settings: Optional[ExportSettings] = None) -> List[Path]:
+        """Save plot with consistent settings and multi-format export.
+
+        Parameters
+        ----------
+        fig:
+            Matplotlib figure to save.
+        output_path:
+            Target path. If a suffix is included it will be stripped so that
+            every requested format receives its own file.
+        dpi:
+            Dots-per-inch for raster formats.
+        export_settings:
+            Optional override for :class:`ExportSettings`.
+        """
+
+        settings = export_settings or self.export_settings
         plt.tight_layout()
-        fig.savefig(output_path, dpi=dpi, bbox_inches='tight')
+
+        output_path = Path(output_path)
+        base_root = output_path.with_suffix('')
+        saved_paths: List[Path] = []
+        for fmt, target in settings.iter_paths(base_root):
+            path = Path(target)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(
+                path,
+                dpi=dpi if fmt in {'png', 'jpg', 'jpeg', 'tiff'} else None,
+                bbox_inches=settings.bbox_inches,
+                transparent=settings.transparent,
+            )
+            saved_paths.append(path)
+
         plt.close(fig)
+        return saved_paths
     
     def get_available_metrics(self, df, metric_configs: Dict) -> Dict:
         """Get available metrics from dataframe that match the configuration."""
