@@ -42,5 +42,13 @@ dataset/
 .trae/
 dvs_analysis.log
 
-scripts/*
-!scripts/generate_all_scripts.py
+scripts/lmDrive/*
+!scripts/lmDrive/generate_all_scripts.py
+!scripts/lmDrive/generate_weather_plots.py
+!scripts/lmDrive/analyze_overall_results.py
+!scripts/lmDrive/analyze_overall_results.sh
+
+scripts/JAAD/*
+
+scripts/DMT22/*
+

@@ -319,11 +319,7 @@ class FramePlotter:
         scatter = ax.scatter(clean_data[metric_x], clean_data[metric_y], 
                            alpha=0.6, color=self.config.colors['primary'])
         
-        # Add trend line
-        z = np.polyfit(clean_data[metric_x], clean_data[metric_y], 1)
-        p = np.poly1d(z)
-        ax.plot(clean_data[metric_x], p(clean_data[metric_x]), 
-               color=self.config.colors['accent'], linewidth=2, linestyle='--')
+        # Trend line removed to keep plot purely scatter-based
         
         # Calculate correlation
         correlation = clean_data[metric_x].corr(clean_data[metric_y])

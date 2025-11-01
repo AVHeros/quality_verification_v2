@@ -35,22 +35,55 @@ def compute_lpips(
     net: str = "alex",
     device: str = "cpu",
 ) -> Optional[float]:
-    """Learned perceptual similarity metric using the lpips library."""
+    """Learned perceptual similarity metric using the lpips library.
+
+    Returns None if required dependencies are unavailable. Falls back to CPU
+    when the requested device is not available. As a secondary fallback,
+    attempts to use pyiqa's LPIPS implementation when lpips cannot be
+    imported.
+    """
+    # Attempt torch import
     try:
         import torch
     except ImportError:  # pragma: no cover - optional dependency path
-        return None
+        # Try pyiqa fallback without torch (pyiqa still requires torch typically)
+        try:
+            import pyiqa  # type: ignore
+        except Exception:
+            return None
+        try:
+            model = pyiqa.create_metric('lpips', device='cpu')  # type: ignore
+            value = float(model(reference, candidate).item())  # type: ignore
+            return value
+        except Exception:
+            return None
 
-    torch_device = torch.device(device)
+    # Resolve torch device with graceful CPU fallback
+    try:
+        torch_device = torch.device(device)
+        # If CUDA requested but unavailable, fallback to CPU
+        if torch_device.type == 'cuda' and not torch.cuda.is_available():
+            torch_device = torch.device('cpu')
+    except Exception:
+        torch_device = torch.device('cpu')
+
+    # Primary: lpips package
     try:
         loss_fn = _get_lpips_model(net, str(torch_device))
+        ref_tensor = _to_lpips_tensor(reference, torch_device)
+        cand_tensor = _to_lpips_tensor(candidate, torch_device)
+        with torch.no_grad():
+            value = loss_fn(ref_tensor, cand_tensor).item()
+        return float(value)
     except ImportError:  # pragma: no cover - optional dependency path
-        return None
-    ref_tensor = _to_lpips_tensor(reference, torch_device)
-    cand_tensor = _to_lpips_tensor(candidate, torch_device)
-    with torch.no_grad():
-        value = loss_fn(ref_tensor, cand_tensor).item()
-    return float(value)
+        # Secondary: pyiqa LPIPS
+        try:
+            import pyiqa  # type: ignore
+            model = pyiqa.create_metric('lpips', device=str(torch_device))  # type: ignore
+            value = float(model(reference, candidate).item())  # type: ignore
+            return value
+        except Exception:
+            return None
 
 
 @lru_cache(maxsize=None)

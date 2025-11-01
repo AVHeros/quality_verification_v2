@@ -444,11 +444,15 @@ class OverviewPlotter:
                    transform=ax.transAxes, fontsize=12)
             return
         
-        # Simple trend visualization
+        # Scatter trend visualization with quality shading
         if 'polarity_accuracy_mean' in events_df.columns:
             weather_perf = events_df.groupby('weather')['polarity_accuracy_mean'].mean()
-            ax.plot(range(len(weather_perf)), weather_perf.values, 'o-', 
-                   color=self.config.colors['primary'], linewidth=2, markersize=8)
+            x_vals = list(range(len(weather_perf)))
+            y_vals = weather_perf.values
+            self.config.scatter_with_quality_shading(
+                ax, x_vals, y_vals, 'polarity_accuracy_mean', scope='events',
+                color=self.config.colors['primary']
+            )
             ax.set_xticks(range(len(weather_perf)))
             ax.set_xticklabels(weather_perf.index, rotation=45)
             ax.set_ylabel('Polarity Accuracy')
@@ -466,11 +470,15 @@ class OverviewPlotter:
                    transform=ax.transAxes, fontsize=12)
             return
         
-        # Simple trend visualization
+        # Scatter trend visualization with quality shading
         if 'ssim_mean' in frames_df.columns:
             weather_perf = frames_df.groupby('weather')['ssim_mean'].mean()
-            ax.plot(range(len(weather_perf)), weather_perf.values, 's-', 
-                   color=self.config.colors['secondary'], linewidth=2, markersize=8)
+            x_vals = list(range(len(weather_perf)))
+            y_vals = weather_perf.values
+            self.config.scatter_with_quality_shading(
+                ax, x_vals, y_vals, 'ssim_mean', scope='frames',
+                color=self.config.colors['secondary']
+            )
             ax.set_xticks(range(len(weather_perf)))
             ax.set_xticklabels(weather_perf.index, rotation=45)
             ax.set_ylabel('SSIM')
