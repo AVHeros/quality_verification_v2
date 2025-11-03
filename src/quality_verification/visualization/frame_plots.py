@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict
 
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 import numpy as np
 import pandas as pd
 
@@ -73,7 +74,31 @@ class FramePlotter:
         err_low = means - table['ci_low'].to_numpy()
         err_high = table['ci_high'].to_numpy() - means
 
+        ax.set_facecolor('#fbfbfb')
+        for spine in ('top', 'right'):
+            ax.spines[spine].set_visible(False)
+
+        rng = np.random.default_rng(20231104)
+        sample_counts: list[tuple[float, int]] = []
+
         for idx, (x, mean, low, high, color) in enumerate(zip(x_positions, means, err_low, err_high, colors)):
+            group_label = table.iloc[idx]['group']
+            group_values = df.loc[df[group_col] == group_label, metric].dropna()
+            sample_counts.append((x, int(group_values.size)))
+
+            if group_values.size:
+                jitter = rng.normal(loc=0.0, scale=0.08, size=group_values.size)
+                scatter_x = np.full(group_values.size, x, dtype=float) + jitter
+                ax.scatter(
+                    scatter_x,
+                    group_values,
+                    s=26,
+                    color=mcolors.to_rgba(color, alpha=0.45),
+                    edgecolor='white',
+                    linewidth=0.4,
+                    zorder=2,
+                )
+
             ax.errorbar(
                 x,
                 mean,
@@ -81,18 +106,21 @@ class FramePlotter:
                 fmt='o',
                 color=color,
                 ecolor=color,
-                capsize=6,
-                markersize=6,
-                elinewidth=1.5,
-                label=str(table.iloc[idx]['group'])
+                capsize=7,
+                markersize=7.5,
+                elinewidth=1.6,
+                markerfacecolor='white',
+                markeredgewidth=1.4,
+                zorder=3,
             )
 
-        ax.plot(x_positions, means, color=self.config.colors['primary'], linewidth=1.2, alpha=0.6)
+        ax.plot(x_positions, means, color=self.config.colors['dark'], linewidth=1.0, alpha=0.55, zorder=2)
         ax.set_xticks(x_positions)
         ax.set_xticklabels(table['group'], rotation=30, ha='right')
         ax.set_title(title, fontweight='bold')
         ax.set_ylabel(ylabel)
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, axis='y', alpha=0.35, linestyle='--')
+        ax.margins(x=0.1)
 
         self.config.apply_quality_shading(ax, means, metric, scope)
 
@@ -110,6 +138,19 @@ class FramePlotter:
         if stats_lines:
             ax.text(0.02, -0.35, '\n'.join(stats_lines), transform=ax.transAxes,
                     fontsize=9, va='top', ha='left', fontfamily='monospace')
+
+        if sample_counts:
+            for x, count in sample_counts:
+                ax.text(
+                    x,
+                    -0.12,
+                    f"n={count}",
+                    transform=ax.get_xaxis_transform(),
+                    ha='center',
+                    va='top',
+                    fontsize=9,
+                    color=self.config.colors['dark'],
+                )
 
     def _summarise_metrics_panel(self, ax, df: pd.DataFrame, metrics: Dict[str, tuple[str, str]]) -> None:
         lines = []
@@ -489,10 +530,12 @@ class FramePlotter:
         ax.set_xlabel(x_name)
         ax.set_ylabel(y_name)
         ax.set_title(f'{x_name} vs {y_name}', fontsize=16, fontweight='bold')
-        ax.grid(True, alpha=0.3)
+        ax.set_facecolor('#fbfbfb')
+        for spine in ('top', 'right'):
+            ax.spines[spine].set_visible(False)
+        ax.grid(True, alpha=0.35, linestyle='--')
         ax.text(0.02, 0.02, summary_text, transform=ax.transAxes,
                 fontsize=10, fontfamily='monospace', ha='left', va='bottom')
-        ax.legend(frameon=False)
 
         self.config.apply_quality_shading(ax, y, metric_y, scope='frames')
 

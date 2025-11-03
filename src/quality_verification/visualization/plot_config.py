@@ -162,15 +162,55 @@ class PlotConfig:
         # Mirrors the logic used in scripts/lmDrive/generate_weather_plots.py
         self.static_thresholds = {
             'frames': {
-                'psnr_mean': {'good': 30.0, 'excellent': 40.0, 'higher_is_better': True},
-                'ssim_mean': {'good': 0.92, 'excellent': 0.95, 'higher_is_better': True},
-                'lpips_mean': {'good': 0.10, 'excellent': 0.05, 'higher_is_better': False},
-                'mse_mean': {'good': 0.01, 'excellent': 0.005, 'higher_is_better': False},
+                'psnr_mean': {
+                    'bad': 20.0,
+                    'good': 25.0,
+                    'excellent': 30.0,
+                    'higher_is_better': True,
+                },
+                'ssim_mean': {
+                    'bad': 0.50,
+                    'good': 0.70,
+                    'excellent': 0.90,
+                    'higher_is_better': True,
+                },
+                'lpips_mean': {
+                    'bad': 0.50,
+                    'good': 0.30,
+                    'excellent': 0.10,
+                    'higher_is_better': False,
+                },
+                'mse_mean': {
+                    'bad': 0.10,
+                    'good': 0.05,
+                    'excellent': 0.01,
+                    'higher_is_better': False,
+                },
                 # Base metric names used in per-pair/per-frame series plots
-                'psnr': {'good': 30.0, 'excellent': 40.0, 'higher_is_better': True},
-                'ssim': {'good': 0.92, 'excellent': 0.95, 'higher_is_better': True},
-                'lpips': {'good': 0.10, 'excellent': 0.05, 'higher_is_better': False},
-                'mse': {'good': 0.01, 'excellent': 0.005, 'higher_is_better': False},
+                'psnr': {
+                    'bad': 20.0,
+                    'good': 25.0,
+                    'excellent': 30.0,
+                    'higher_is_better': True,
+                },
+                'ssim': {
+                    'bad': 0.50,
+                    'good': 0.70,
+                    'excellent': 0.90,
+                    'higher_is_better': True,
+                },
+                'lpips': {
+                    'bad': 0.50,
+                    'good': 0.30,
+                    'excellent': 0.10,
+                    'higher_is_better': False,
+                },
+                'mse': {
+                    'bad': 0.10,
+                    'good': 0.05,
+                    'excellent': 0.01,
+                    'higher_is_better': False,
+                },
             },
             'events': {
                 'polarity_accuracy_mean': {'good': 0.80, 'excellent': 0.90, 'higher_is_better': True},
@@ -336,14 +376,17 @@ class PlotConfig:
         data_min = float(np.min(valid)) if valid.size else 0.0
         data_max = float(np.max(valid)) if valid.size else 1.0
 
+        good_thr = thresholds.get('good')
+        exc_thr = thresholds.get('excellent')
+        bad_thr = thresholds.get('bad')
+        hib = thresholds.get('higher_is_better', True)
+
         y_candidates_min = [data_min]
         y_candidates_max = [data_max]
-        if thresholds.get('good') is not None:
-            y_candidates_min.append(float(thresholds['good']))
-            y_candidates_max.append(float(thresholds['good']))
-        if thresholds.get('excellent') is not None:
-            y_candidates_min.append(float(thresholds['excellent']))
-            y_candidates_max.append(float(thresholds['excellent']))
+        for candidate in (bad_thr, good_thr, exc_thr):
+            if candidate is not None:
+                y_candidates_min.append(float(candidate))
+                y_candidates_max.append(float(candidate))
 
         y_min = min(y_candidates_min)
         y_max = max(y_candidates_max)
@@ -352,26 +395,83 @@ class PlotConfig:
         y_max += margin
         ax.set_ylim(y_min, y_max)
 
-        # Region shading: bad/good/excellent
-        good_thr = thresholds.get('good')
-        exc_thr = thresholds.get('excellent')
-        hib = thresholds.get('higher_is_better', True)
+        # Region shading: bad/good/excellent bands
         if good_thr is not None and exc_thr is not None:
             if hib:
-                ax.axhspan(y_min, good_thr, facecolor='#f8d7da', alpha=0.35, zorder=1)  # bad
-                ax.axhspan(good_thr, exc_thr, facecolor='#cfe2ff', alpha=0.35, zorder=1)  # good
-                ax.axhspan(exc_thr, y_max, facecolor='#d1e7dd', alpha=0.35, zorder=1)  # excellent
+                if bad_thr is not None:
+                    ax.axhspan(y_min, bad_thr, facecolor='#f8d7da', alpha=0.42, zorder=1)
+                    ax.axhspan(bad_thr, good_thr, facecolor='#fff3cd', alpha=0.34, zorder=1)
+                else:
+                    ax.axhspan(y_min, good_thr, facecolor='#f8d7da', alpha=0.35, zorder=1)
+                ax.axhspan(good_thr, exc_thr, facecolor='#cfe2ff', alpha=0.34, zorder=1)
+                ax.axhspan(exc_thr, y_max, facecolor='#d1e7dd', alpha=0.35, zorder=1)
             else:
-                ax.axhspan(y_min, exc_thr, facecolor='#d1e7dd', alpha=0.35, zorder=1)  # excellent
-                ax.axhspan(exc_thr, good_thr, facecolor='#cfe2ff', alpha=0.35, zorder=1)  # good
-                ax.axhspan(good_thr, y_max, facecolor='#f8d7da', alpha=0.35, zorder=1)  # bad
+                ax.axhspan(y_min, exc_thr, facecolor='#d1e7dd', alpha=0.35, zorder=1)
+                ax.axhspan(exc_thr, good_thr, facecolor='#cfe2ff', alpha=0.34, zorder=1)
+                if bad_thr is not None:
+                    ax.axhspan(good_thr, bad_thr, facecolor='#fff3cd', alpha=0.34, zorder=1)
+                    ax.axhspan(bad_thr, y_max, facecolor='#f8d7da', alpha=0.42, zorder=1)
+                else:
+                    ax.axhspan(good_thr, y_max, facecolor='#f8d7da', alpha=0.35, zorder=1)
 
-        # Threshold lines
+        # Threshold lines with ordered legend entries
+        def _format_threshold_value(value: float | None) -> str:
+            if value is None:
+                return ''
+            magnitude = abs(float(value))
+            if magnitude >= 100 or float(value).is_integer():
+                formatted = f"{float(value):.0f}"
+            elif magnitude >= 10:
+                formatted = f"{float(value):.1f}"
+            elif magnitude >= 1:
+                formatted = f"{float(value):.2f}"
+            else:
+                formatted = f"{float(value):.3f}"
+            return formatted.rstrip('0').rstrip('.') if '.' in formatted else formatted
+
+        threshold_lines: list[tuple] = []
+        comparator = '≥' if hib else '≤'
+
         if good_thr is not None:
-            ax.axhline(good_thr, color='orange', linestyle='--', linewidth=1.5, label='Good', zorder=4)
+            good_label = f"Good {comparator} {_format_threshold_value(good_thr)}"
+            good_line = ax.axhline(
+                good_thr,
+                color=self.colors['warning'],
+                linestyle='--',
+                linewidth=1.6,
+                label=good_label,
+                zorder=5,
+            )
+            threshold_lines.append((good_line, good_label, float(good_thr)))
+
         if exc_thr is not None:
-            ax.axhline(exc_thr, color='green', linestyle=':', linewidth=1.8, label='Excellent', zorder=4)
-        ax.legend(loc='upper right')
+            exc_label = f"Excellent {comparator} {_format_threshold_value(exc_thr)}"
+            exc_line = ax.axhline(
+                exc_thr,
+                color=self.colors['success'],
+                linestyle=':',
+                linewidth=1.8,
+                label=exc_label,
+                zorder=6,
+            )
+            threshold_lines.append((exc_line, exc_label, float(exc_thr)))
+
+        existing_handles, existing_labels = ax.get_legend_handles_labels()
+
+        if threshold_lines or existing_handles:
+            threshold_label_map = {label: (handle, pos) for handle, label, pos in threshold_lines}
+            other_entries: list[tuple] = []
+            for handle, label in zip(existing_handles, existing_labels):
+                if label in threshold_label_map:
+                    continue
+                other_entries.append((handle, label))
+
+            ordered_thresholds = sorted(threshold_lines, key=lambda item: item[2], reverse=True)
+            final_handles = [h for h, _ in other_entries] + [item[0] for item in ordered_thresholds]
+            final_labels = [lbl for _, lbl in other_entries] + [item[1] for item in ordered_thresholds]
+
+            if final_handles:
+                ax.legend(final_handles, final_labels, loc='upper right', frameon=False)
 
         return thresholds
 
